@@ -16,6 +16,9 @@ var user = require('./user.js');
 var broadcastval = require('./broadcast.js');
 var testemail = require('./testemail.js');
 var banquet = require('./banquet.js');
+var chamber = require('./chamber.js');
+var magazine = require('./clubman.js');
+var generalsetting = require('./general.js');
 dotenv.config();
 
 
@@ -42,7 +45,11 @@ app.use('/feedbacks',feedbacks)
 // app.use('/viewreport',viewreport)
 app.use('/user',user)
 app.use('/broadcast',broadcastval)
+
 app.use('/banquet',banquet)
+app.use('/chamber',chamber)
+app.use('/magazine', magazine)
+app.use('/general',generalsetting)
 app.listen(PORT, function(){
     console.log("Server is running on Port: " +PORT);
 

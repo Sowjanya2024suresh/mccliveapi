@@ -16,7 +16,10 @@ const storage = multer.diskStorage({
     cb(null, 'uploads/broadcast/')
   },
   filename: function (req, file, cb) {
-    cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname))
+    // cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname))
+    // cb(null, file.originalname)
+    cb(null, file.originalname.substring(0, file.originalname.lastIndexOf('.'))+Date.now()+path.extname(file.originalname))
+    
   },
   /* filename: (req, file, cb) => {
     cb(null, file.originalname)
@@ -137,17 +140,19 @@ router.route('/create_broadcast').post(upload.fields([{
 
       //  send_broadcast(lastid,'');
 
-      setTimeout(() => {
-        send_broadcast(lastid, ' limit 0,800');
+      // send_broadcastadmin(lastid);
+
+      setTimeout(async() => {
+        await send_broadcast(lastid, ' limit 0,800');
       }, 10000);
 
       if (groupid == "all") {
-        setTimeout(() => {
-          send_broadcast(lastid, ' limit  800,800');
+        setTimeout(async() => {
+          await send_broadcast(lastid, ' limit  800,800');
         }, 10000);
 
-        setTimeout(() => {
-          send_broadcast(lastid, ' limit 1600,800');
+        setTimeout(async() => {
+         await send_broadcast(lastid, ' limit 1600,800');
         }, 10000);
       }
 
@@ -206,6 +211,68 @@ router.route('/get_broadcast_message_template').get(function (req, res) {
 
 
 });
+
+router.route('/up_bc_status').get(async  function (req, res) {
+
+  var id = req.query.id;
+  
+   await updatebroadcaststatus(id);
+  setTimeout(() => {
+    return res.status(200).json({ success: '1',msg:'broad cast status update'});
+
+  }, 1000);
+  
+});
+ async function updatebroadcaststatus(id)
+{
+    var sql = "SELECT * from log_broadcast where statusval='Success' and statusmessage='' and eid="+ id +"";
+    db.query(sql, function (err, result) {
+
+        result.forEach( async function (element) {
+         
+            try
+            {
+           await axios.get('https://api.in.freshchat.com/v2/outbound-messages?request_id=' + element.request_id, {
+                // Name: 'Fred',
+                // Age: '23' 
+                headers: {
+                  'Access-Control-Allow-Origin': '*',
+                  'Authorization': `Bearer ${token}`,
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json;charset=utf-8',
+                }
+              })
+                .then(function (response1) {
+                  try
+                  {
+                  console.log(response1.data.outbound_messages[0].status);
+                  var statusmessage=response1.data.outbound_messages[0].status;
+                  if(response1.data.outbound_messages[0].status=="FAILED")
+                    statusmessage=statusmessage+" "+response1.data.outbound_messages[0].failure_reason;
+
+                  statusmessage=statusmessage.replace(/'/g, "");
+
+                  // loginsert(member_code,number,response.data.status,"whatsapp-event-launch-"+id,"Success","MCC");
+                  var sql = "update log_broadcast set statusmessage='" + statusmessage + "' WHERE request_id='" + element.request_id + "'";
+                  db.query(sql, function (err, result) {
+      
+                  });
+                }
+                catch(e)
+
+                {}
+                })
+              }
+                catch(e)
+
+                {}
+             
+        });
+        
+      
+      
+    });
+}
 
 router.route('/update_broadcast').post(upload.fields([{
   name: 'imagepath_file', maxCount: 1
@@ -267,7 +334,7 @@ router.route('/update_broadcast').post(upload.fields([{
 });
 
 
-function send_broadcast(broadcastid, limit) {
+async function send_broadcast(broadcastid, limit) {
   // var path1=path.join(__dirname , "uploads","broadcast");
 
   var path1 = "https://webapi.madrascricketclub.org/broadcast/";
@@ -290,10 +357,12 @@ function send_broadcast(broadcastid, limit) {
     if (groupid) {
 
       if (groupid == "all") {
-        condition = condition + "";
+        // condition = condition + " where a.member_code not in('MIC@ADMIN2')";
+        condition = condition + " ";
       }
       else if (groupid == "admin") {
-        condition = condition + "where a.member_code in ('MIC@ADMIN2','RL01','SAS2022')";
+        // condition = condition + "where a.member_code in ('MIC@ADMIN2','RL01','SAS2022','P074')";
+        condition = condition + "where a.member_code in ('SAS2022','RL01')";
       }
       else
         condition = condition + " where " + groupid + "='1'";
@@ -326,7 +395,7 @@ function send_broadcast(broadcastid, limit) {
       // }
 
       //  var sql = "SELECT a.member_code as member_code,first_name,mobile_no,email FROM members a left join `member_sports` b on a.member_code=b.member_code  where a.member_code in ('RL01','SAS2023','SAS2023') order by a.member_code  "+limit;
-      var sql = "SELECT a.member_code as member_code,first_name,mobile_no,email FROM members a left join `member_sports` b on a.member_code=b.member_code " + condition + "  order by a.id  " + limit;
+      var sql = "SELECT a.member_code as member_code,first_name,mobile_no,email,pin FROM members a left join `member_sports` b on a.member_code=b.member_code " + condition + "  order by a.id  " + limit;
       // var sql = "SELECT a.member_code as member_code,first_name,mobile_no,email FROM members a left join `member_sports` b on a.member_code=b.member_code  where a.member_code not in('P074','MIC@ADMIN2','K069','R184') order by a.member_code  "+limit;
       // var sql = "SELECT a.member_code as member_code,first_name,mobile_no,email FROM members a left join `member_sports` b on a.member_code=b.member_code " + condition +"";
       // var sql="SELECT a.member_code as member_code,first_name,mobile_no,email FROM members a left join `member_sports` b on a.member_code=b.member_code  where a.member_code in('MIC@ADMIN1','RL01','SAS2023','P074','MIC@ADMIN2')";
@@ -334,7 +403,7 @@ function send_broadcast(broadcastid, limit) {
 
         resultsports.forEach(function (element) {
           console.log(element)
-          setTimeout(() => {
+          setTimeout(async() => {
             if (medium == "WA") {
 
               if (module == 'Event' && message_template == 'Launch')
@@ -355,7 +424,9 @@ function send_broadcast(broadcastid, limit) {
               else if (module == 'General' && message_template == 'General-pdf')
                 general_info_document(element.mobile_no, message, path1 + filepath, element.member_code, broadcastid);
               else if (module == 'General' && message_template == 'General-Nomessage')
-                general_info_nomessage(element.mobile_no, message, path1 + imagepath, element.member_code, broadcastid);
+                await general_info_nomessage(element.mobile_no, message, path1 + imagepath, element.member_code, broadcastid);
+              else if (module == 'General-Pin' && message_template == 'General-Pin')
+                general_pin_info(element.mobile_no, element.pin, path1 + filepath, element.member_code, broadcastid);
 
             }
             else if (medium == "EM") {
@@ -376,6 +447,85 @@ function send_broadcast(broadcastid, limit) {
     // return res.status(200).send({ success: 1, result: result });
   });
 }
+
+
+function send_broadcastadmin(broadcastid) {
+  // var path1=path.join(__dirname , "uploads","broadcast");
+
+  var path1 = "https://webapi.madrascricketclub.org/broadcast/";
+
+  var sql = "SELECT module,eventid,message_template,message,medium,groupid,imagepath,filepath,event_name,event_image,DATE_FORMAT(event_date_from,'%d-%b-%Y') as event_date FROM `broadcast_detail` b left join events e on b.eventid=e.id where b.id='" + broadcastid + "'";
+  db.query(sql, function (err, result) {
+    if (err) return res.status(401).send({ error: err.message });
+    var imagepath = result[0].imagepath;
+    var filepath = result[0].filepath;
+    var message = result[0].message;
+    var groupid = result[0].groupid;
+    var medium = result[0].medium;
+    var module = result[0].module;
+    var message_template = result[0].message_template;
+    var eventid = result[0].eventid;
+    var event_name = result[0].event_name;
+    var event_image = result[0].event_image;
+    var event_date = result[0].event_date;
+    var condition = "";
+    var sql = "SELECT a.member_code as member_code,first_name,mobile_no,email,pin FROM members a left join `member_sports` b on a.member_code=b.member_code where a.member_code in('RL01','MIC@ADMIN2')  order by a.id  ";
+    // var sql = "SELECT a.member_code as member_code,first_name,mobile_no,email FROM members a left join `member_sports` b on a.member_code=b.member_code  where a.member_code not in('P074','MIC@ADMIN2','K069','R184') order by a.member_code  "+limit;
+    // var sql = "SELECT a.member_code as member_code,first_name,mobile_no,email FROM members a left join `member_sports` b on a.member_code=b.member_code " + condition +"";
+    // var sql="SELECT a.member_code as member_code,first_name,mobile_no,email FROM members a left join `member_sports` b on a.member_code=b.member_code  where a.member_code in('MIC@ADMIN1','RL01','SAS2023','P074','MIC@ADMIN2')";
+    db.query(sql, function (err, resultsports) {
+
+      resultsports.forEach(function (element) {
+        console.log(element)
+        setTimeout(() => {
+          if (medium == "WA") {
+
+            if (module == 'Event' && message_template == 'Launch')
+              // broadcast_sendwhatsapp(broadcastid, event_name, element.member_code, element.mobile_no, element.email, message, path1 + imagepath, imagepath, path1 + filepath, filepath, '/dev/event/launch', '');
+              event_launch(element.mobile_no, event_name, path1 + imagepath, element.member_code, broadcastid);
+
+            else if (module == 'Event' && message_template == 'Open')
+              event_open_new(element.mobile_no, event_name, path1 + imagepath, element.member_code, broadcastid);
+            // broadcast_sendwhatsapp(broadcastid, event_name, element.member_code, element.mobile_no, element.email, message, path1 + imagepath, imagepath, path1 + filepath, filepath, '/dev/event/open', '');
+            else if (module == 'Event' && message_template == 'Highlights')
+              // broadcast_sendwhatsapp(broadcastid, event_name, element.member_code, element.mobile_no, element.email, message, path1 + imagepath, imagepath, path1 + filepath, filepath, '/dev/event/highlights', event_date);
+              event_highlight(element.mobile_no, event_name, path1 + imagepath, element.member_code, event_date, broadcastid);
+            // broadcast_sendwhatsapp(broadcastid,event_name,element.member_code,"9841200531","sowjanya@lokas.in",message,"https://webapistaging.madrascricketclub.org/eventsimg/"+event_image,event_image,path1+filepath,filepath,'/dev/event/highlights');
+            else if (module == 'Event' && message_template == 'Info')
+              event_info(element.mobile_no, event_name, path1 + imagepath, element.member_code, broadcastid);
+            else if (module == 'General' && message_template == 'General')
+              general_info(element.mobile_no, message, path1 + imagepath, element.member_code, broadcastid);
+            else if (module == 'General' && message_template == 'General-pdf')
+              general_info_document(element.mobile_no, message, path1 + filepath, element.member_code, broadcastid);
+            else if (module == 'General' && message_template == 'General-Nomessage')
+              general_info_nomessage(element.mobile_no, message, path1 + imagepath, element.member_code, broadcastid);
+            else if (module == 'General-Pin' && message_template == 'General-Pin')
+              general_pin_info(element.mobile_no, element.pin, path1 + filepath, element.member_code, broadcastid);
+
+          }
+          else if (medium == "EM") {
+
+            broadcast_sendemail(broadcastid, element.first_name, element.member_code, element.mobile_no, element.email, message, path1 + imagepath, imagepath, path1 + filepath, filepath);
+            // broadcast_sendemail(broadcastid,element.first_name,element.member_code,"9841200531","sowjanya@lokas.in",message,path1+imagepath,imagepath,path1+filepath,filepath);
+          }
+        }, 2000);
+
+
+      });
+    });
+   
+    // return res.status(200).send({ success: 1, result: result });
+  });
+}
+router.route('/send_admin_broadcast').get(function (req, res) {
+
+  var broadcastid = req.query.id;
+  send_broadcastadmin(broadcastid);
+  setTimeout(() => {
+    return res.status(200).send({ success: 1 });
+  }, 10000);
+
+});
 
 router.route('/send_fail_member_broadcast').get(function (req, res) {
 
@@ -411,14 +561,14 @@ function send_fail_member(broadcastid) {
         condition = condition + "";
       }
       else if (groupid == "admin") {
-        condition = condition + "where a.member_code in ('MIC@ADMIN2','RL01','SAS2022')";
+        condition = condition + "where a.member_code in ('MIC@ADMIN2','RL01','SAS2022','P074')";
       }
       else
         condition = condition + " where " + groupid + "='1'";
 
 
       //  var sql = "SELECT a.member_code as member_code,first_name,mobile_no,email FROM members a left join `member_sports` b on a.member_code=b.member_code  where a.member_code in ('RL01','SAS2023','SAS2023') order by a.member_code  "+limit;
-      var sql = "SELECT a.member_code as member_code,first_name,mobile_no,email FROM members a left join `member_sports` b on a.member_code=b.member_code where a.member_code in(select source_id from log_broadcast where eid='" + broadcastid + "' and statusval='Failed')"
+      var sql = "SELECT a.member_code as member_code,first_name,mobile_no,email,pin FROM members a left join `member_sports` b on a.member_code=b.member_code where a.member_code in(select source_id from log_broadcast where eid='" + broadcastid + "' and statusval='Failed')"
       // var sql = "SELECT a.member_code as member_code,first_name,mobile_no,email FROM members a left join `member_sports` b on a.member_code=b.member_code  where a.member_code not in('P074','MIC@ADMIN2','K069','R184') order by a.member_code  "+limit;
       // var sql = "SELECT a.member_code as member_code,first_name,mobile_no,email FROM members a left join `member_sports` b on a.member_code=b.member_code " + condition +"";
       // var sql="SELECT a.member_code as member_code,first_name,mobile_no,email FROM members a left join `member_sports` b on a.member_code=b.member_code  where a.member_code in('MIC@ADMIN1','RL01','SAS2023','P074','MIC@ADMIN2')";
@@ -448,6 +598,8 @@ function send_fail_member(broadcastid) {
                 general_info_document(element.mobile_no, message, path1 + filepath, element.member_code, broadcastid);
               else if (module == 'General' && message_template == 'General-Nomessage')
                 general_info_nomessage(element.mobile_no, message, path1 + imagepath, element.member_code, broadcastid);
+              else if (module == 'General-Pin' && message_template == 'General-Pin')
+                general_pin_info(element.mobile_no, element.pin, path1 + filepath, element.member_code, broadcastid);
 
             }
             else if (medium == "EM") {
@@ -465,6 +617,102 @@ function send_fail_member(broadcastid) {
 
 
     }
+    // return res.status(200).send({ success: 1, result: result });
+  });
+
+
+}
+
+router.route('/send_relation_member_broadcast').get(function (req, res) {
+
+  var broadcastid = req.query.id;
+  send_relation_member(broadcastid);
+  setTimeout(() => {
+    return res.status(200).send({ success: 1 });
+  }, 10000);
+
+});
+
+function send_relation_member(broadcastid) {
+  var path1 = "https://webapi.madrascricketclub.org/broadcast/";
+
+  var sql = "SELECT module,eventid,message_template,message,medium,groupid,imagepath,filepath,event_name,event_image,DATE_FORMAT(event_date_from,'%d-%b-%Y') as event_date FROM `broadcast_detail` b left join events e on b.eventid=e.id where b.id='" + broadcastid + "'";
+  db.query(sql, function (err, result) {
+    if (err) return res.status(401).send({ error: err.message });
+    var imagepath = result[0].imagepath;
+    var filepath = result[0].filepath;
+    var message = result[0].message;
+    var groupid = result[0].groupid;
+    var medium = result[0].medium;
+    var module = result[0].module;
+    var message_template = result[0].message_template;
+    var eventid = result[0].eventid;
+    var event_name = result[0].event_name;
+    var event_image = result[0].event_image;
+    var event_date = result[0].event_date;
+    var condition = "";
+    
+
+      if (groupid == "all") {
+        condition = condition + "";
+      }
+      else if (groupid == "admin") {
+        condition = condition + "where a.member_code in ('RL02')";
+      }
+      else
+        condition = condition + " where " + groupid + "='1'";
+
+
+      //  var sql = "SELECT a.member_code as member_code,first_name,mobile_no,email FROM members a left join `member_sports` b on a.member_code=b.member_code  where a.member_code in ('RL01','SAS2023','SAS2023') order by a.member_code  "+limit;
+      var sql = "SELECT a.member_code as member_code,first_name,relation_no as mobile_no,email,pin FROM members a left join `member_sports` b on a.member_code=b.member_code where a.relation_no<>''"
+      // var sql = "SELECT a.member_code as member_code,first_name,mobile_no,email FROM members a left join `member_sports` b on a.member_code=b.member_code  where a.member_code not in('P074','MIC@ADMIN2','K069','R184') order by a.member_code  "+limit;
+      // var sql = "SELECT a.member_code as member_code,first_name,mobile_no,email FROM members a left join `member_sports` b on a.member_code=b.member_code " + condition +"";
+      // var sql="SELECT a.member_code as member_code,first_name,mobile_no,email FROM members a left join `member_sports` b on a.member_code=b.member_code  where a.member_code in('MIC@ADMIN1','RL01','SAS2023','P074','MIC@ADMIN2')";
+      db.query(sql, function (err, resultsports) {
+
+        resultsports.forEach(function (element) {
+          console.log(element)
+          setTimeout(() => {
+            if (medium == "WA") {
+
+              if (module == 'Event' && message_template == 'Launch')
+                // broadcast_sendwhatsapp(broadcastid, event_name, element.member_code, element.mobile_no, element.email, message, path1 + imagepath, imagepath, path1 + filepath, filepath, '/dev/event/launch', '');
+                event_launch(element.mobile_no, event_name, path1 + imagepath, element.member_code, broadcastid);
+
+              else if (module == 'Event' && message_template == 'Open')
+                event_open_new(element.mobile_no, event_name, path1 + imagepath, element.member_code, broadcastid);
+              // broadcast_sendwhatsapp(broadcastid, event_name, element.member_code, element.mobile_no, element.email, message, path1 + imagepath, imagepath, path1 + filepath, filepath, '/dev/event/open', '');
+              else if (module == 'Event' && message_template == 'Highlights')
+                // broadcast_sendwhatsapp(broadcastid, event_name, element.member_code, element.mobile_no, element.email, message, path1 + imagepath, imagepath, path1 + filepath, filepath, '/dev/event/highlights', event_date);
+                event_highlight(element.mobile_no, event_name, path1 + imagepath, element.member_code, event_date, broadcastid);
+              // broadcast_sendwhatsapp(broadcastid,event_name,element.member_code,"9841200531","sowjanya@lokas.in",message,"https://webapistaging.madrascricketclub.org/eventsimg/"+event_image,event_image,path1+filepath,filepath,'/dev/event/highlights');
+              else if (module == 'Event' && message_template == 'Info')
+                event_info(element.mobile_no, event_name, path1 + imagepath, element.member_code, broadcastid);
+              else if (module == 'General' && message_template == 'General')
+                general_info(element.mobile_no, message, path1 + imagepath, element.member_code, broadcastid);
+              else if (module == 'General' && message_template == 'General-pdf')
+                general_info_document(element.mobile_no, message, path1 + filepath, element.member_code, broadcastid);
+              else if (module == 'General' && message_template == 'General-Nomessage')
+                general_info_nomessage(element.mobile_no, message, path1 + imagepath, element.member_code, broadcastid);
+               else if (module == 'General-Pin' && message_template == 'General-Pin')
+              general_pin_info(element.mobile_no, element.pin, path1 + filepath, element.member_code, broadcastid);
+
+            }
+            else if (medium == "EM") {
+
+              broadcast_sendemail(broadcastid, element.first_name, element.member_code, element.mobile_no, element.email, message, path1 + imagepath, imagepath, path1 + filepath, filepath);
+              // broadcast_sendemail(broadcastid,element.first_name,element.member_code,"9841200531","sowjanya@lokas.in",message,path1+imagepath,imagepath,path1+filepath,filepath);
+            }
+          }, 2000);
+
+
+        });
+      });
+
+
+
+
+    
     // return res.status(200).send({ success: 1, result: result });
   });
 
@@ -493,7 +741,7 @@ router.route('/sent_broadcast_tomemeber').get(function (req, res) {
         condition = condition + "";
       }
       else if (groupid == "admin") {
-        condition = condition + "where a.member_code in ('MIC@ADMIN2','RL01','SAS2022')";
+        condition = condition + "where a.member_code in ('MIC@ADMIN2','RL01','SAS2022','P074')";
       }
       else
         condition = condition + " where " + groupid + "='1'";
@@ -1025,7 +1273,7 @@ async function general_info(number, name, imageurl, member_code, eid) {
                 "data": name
               },
               {
-                "data": "9966463000"
+                "data": "9710744221"
               },
               {
                 "data": member_code
@@ -1056,6 +1304,77 @@ async function general_info(number, name, imageurl, member_code, eid) {
 
     }).catch((err) => {
       var sql = "INSERT INTO log_broadcast (message,modeval,sourceval,source_id,statusval,to_number,eid) VALUES ('" + err.message + "','Whatsapp-General','MCC','" + member_code + "','Fail','" + number + "','" + eid + "')";
+      db.query(sql, function (err, result) {
+
+      });
+    });
+}
+
+async function general_pin_info(number, name, imageurl, member_code, eid) {
+  var sqldel = "delete from log_broadcast  where eid='" + eid + "' and source_id='" + member_code + "'";
+  db.query(sqldel, function (err, result) {
+
+  });
+  const params = {
+    "from": {
+      "phone_number": "+919966463000"
+    },
+    "to": [
+      {
+        "phone_number": "+91" + number
+      }
+    ],
+    "data": {
+      "message_template": {
+        "storage": "conversation",
+        "namespace": "99045416_49f0_43b3_818a_2ce210b1c526",
+        "template_name": "general_pdf",
+        "language": {
+          "policy": "deterministic",
+          "code": "en"
+        },
+        "rich_template_data": {
+          "header": {
+            "type": "document",
+            "media_url": imageurl,
+          },
+          "body": {
+            "params": [
+              {
+                "data": "Your PIN for use in Member Web Portal is "+name
+              },
+              {
+                "data": "9710744221"
+              },
+              {
+                "data": member_code
+              },
+            ]
+          }
+        }
+      }
+    }
+  };
+  await axios.post('https://api.in.freshchat.com/v2/outbound-messages/whatsapp', params, {
+    // Name: 'Fred',
+    // Age: '23' 
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json',
+      'Content-Type': 'application/json;charset=utf-8',
+    }
+  })
+    .then(function (response) {
+      //  console.log(response);
+      // loginsert(member_code,number,response.data.status,"whatsapp-event-launch-"+id,"Success","MCC");
+      var sql = "INSERT INTO log_broadcast (message,modeval,sourceval,source_id,statusval,to_number,eid,request_id) VALUES ('" + response.data.status + "','Whatsapp-General-Pin','MCC','" + member_code + "','Success','" + number + "','" + eid + "','" + response.data.request_id + "')";
+      db.query(sql, function (err, result) {
+
+      });
+
+    }).catch((err) => {
+      var sql = "INSERT INTO log_broadcast (message,modeval,sourceval,source_id,statusval,to_number,eid) VALUES ('" + err.message + "','Whatsapp-General-Pin','MCC','" + member_code + "','FAILED','" + number + "','" + eid + "')";
       db.query(sql, function (err, result) {
 
       });
@@ -1097,7 +1416,7 @@ async function general_info_document(number, name, imageurl, member_code, eid) {
                 "data": name
               },
               {
-                "data": "9966463000"
+                "data": "9710744221"
               },
               {
                 "data": member_code

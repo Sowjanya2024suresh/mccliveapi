@@ -35,18 +35,29 @@ router.route('/feedback_get').get(function(req,res){
 	var orderby='';
 	var sort = '';
 	var limit = '';
-	
+	if(req.query.CurrentUserId){
+		var CurrentUserId=req.query.CurrentUserId;
+		if(where==''){
+			where += "WHERE ";
+		}else{
+			where +=' AND ';
+		}
+		if(CurrentUserId!=''){
+			where +=" member_code='"+CurrentUserId+"' ";
+		}
+		
+	}
 	if(req.query.term){
 		var term = req.query.term;
 		
-		/* if(where==''){
+		if(where==''){
 			where += "WHERE ";
 		}else{
 			where +=' AND ';
 		}
 		if(term !=''){
-			where +=" e.event_name LIKE '%"+term+"%' OR e.event_date_from  LIKE '%"+term+"%' OR e.event_date_to LIKE '%"+term+"%' OR er1.rsvp_status  LIKE '%"+term+"%' OR er1.member_code  LIKE '%"+term+"%'";
-		} */
+			where +=" member_code LIKE '%"+term+"%' OR feedback_category LIKE '%"+term+"%' OR feedback_text  LIKE '%"+term+"%' ";
+		}
 	}
 
 	
@@ -97,94 +108,6 @@ router.route('/feedback_get').get(function(req,res){
 
   });
   
-
-router.route('/rsvp_detail').get(function(req,res){
-var where =' WHERE er1.is_primary=1';
-	
-	if(req.query.orderId){
-		var orderId=req.query.orderId;
-		if(where==''){
-			where += "WHERE ";
-		}else{
-			where +=' AND ';
-		}
-		if(orderId!=''){
-			where +=" er1.rsvp_id='"+orderId+"';";
-		}
-		
-	}
-   
-    var sql = "select *, (SELECT count(rsvp_id) FROM event_rsvp er2 WHERE er2.is_primary=0 AND er2.`parent_rsvp_id` = er1.rsvp_id ) as totalguest  from event_rsvp er1 "+where+" ;";
-	
-	
-db.query(sql, function (err, result) {
-  if (err)  return res.status(401).send({ error: err.message });
-       if (result.length >= 0) {
-			var orderitemssql = "select event_name, (SELECT cat_name from event_category where id=event_category) as eventcategory, venue, event_date_from, event_date_to from events  WHERE id='"+result[0].event_id+"';";
-			db.query(orderitemssql, function (erra, resulta) {
-				if (erra)  return res.status(401).send({ error: erra.message });
-				if (resulta.length >= 0) {
-					console.log(result[0].member_code);
-					 var customer_detail = "select first_name, last_name, email, mobile_no from members where  member_code='"+result[0].member_code+"' ;";
-					db.query(customer_detail, function (errb, resultb) {
-						if (errb)  return res.status(401).send({ error: errb.message });
-						if (resultb.length >= 0) {
-							return  res.status(200).send({ success:1,result: result, resulta:resulta, resultb:resultb });
-						}else{ 
-							return  res.status(200).send({ success:0, result:result, resulta:resulta, resultb:[],pageCount:1 });
-						   }
-					}); 
-				}else{
-					return  res.status(200).send({ success:0, result:[], resulta:[], resultb:[],pageCount:1 });
-				   }
-			});
-		   
-		  
-      // 
-       }else{
-        return  res.status(200).send({ success:0, result:[], resulta:[], resultb:[],pageCount:1 });
-	   }
-});
-
-
-});
-
- 
-router.route('/rsvp_guest_detail').get(function(req,res){
-var where ='';
-	
-	if(req.query.orderId){
-		var orderId=req.query.orderId;
-		if(where==''){
-			where += "WHERE ";
-		}else{
-			where +=' AND ';
-		}
-		if(orderId!=''){
-			where +=" parent_rsvp_id='"+orderId+"';";
-		}
-		
-	}
-   
-    var sql = "select guest_name, guest_email, guest_phone from event_rsvp "+where+" ;";
-	
-	
-db.query(sql, function (err, result) {
-  if (err)  return res.status(401).send({ error: err.message });
-       if (result.length >= 0) {
-		
-							return  res.status(200).send({ success:1,result: result });
-						
-		  
-      // 
-       }else{
-        return  res.status(200).send({ success:0, result:[], pageCount:1 });
-	   }
-});
-
-
-});
-
 
   
   

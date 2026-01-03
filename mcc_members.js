@@ -231,6 +231,48 @@ router.route('/login').post(function (req, res) {
 
 });
 
+router.route('/loginwithpin').post(function (req, res) {
+
+  var membercode = req.body.membercode;
+  // var password = req.body.password;
+  var pin = req.body.pin;
+
+  var password_string = "";
+
+  db.query("SELECT password_string FROM members where member_code='" + membercode + "'", function (err, result, fields) {
+    if (err) { return res.status(401).send({ error: err.message }); }
+    // console.log(result);
+    if(result.length == 1){
+    // console.log(result);
+    // password_string = result[0].password_string;
+    // var name = password + password_string;
+    // var hash = crypto.createHash('md5').update(name).digest('hex');
+
+    var sql = "SELECT * FROM `members` where member_code='" + membercode + "' and pin='" + pin + "'";
+
+    var query = db.query(sql, function (err1, result1) {
+
+      if (err1) return res.status(401).send({ error: err1.message });
+      if (result1.length == 1) {
+		
+		const clientname = result1[0].first_name;
+		var strToDate = result1[0].last_login?result1[0].last_login.toString():'';
+        return res.status(200).json({ success: '1',name: clientname, membercode: result1[0].member_code,createdby:membercode,access:'no',  email : result1[0].email , mobile_no : result1[0].mobile_no ,postal_address : result1[0].postal_address ,last_login : strToDate ,type: result1[0].type })
+        //    return res.send('success');
+      }
+      else
+        return res.status(200).json({ success: '0' })
+      //    return res.send('fail');
+    });
+	}else{
+		return  res.status(200).json({ success: '0' });
+	}
+
+  });
+
+
+
+});
 
 router.route('/forgotpassword').post(function (req, res) {
 
@@ -541,6 +583,77 @@ router.route('/resetpassword').post(function (req, res) {
   });
 
 
+});
+
+router.route('/changePin').post(function (req, res){
+	
+  var membercode = req.body.membercode;
+  var oldpin = req.body.oldpin;
+  var newpin = req.body.newpin;
+  var confirmpin = req.body.confirmpin;
+  db.query("SELECT password_string, password, pin, first_name,email FROM members where member_code='" + membercode + "'", function (err, result, fields) {
+    if (err) { return res.status(401).send({ error: err.message }); }
+    // console.log(result);
+    if(result.length == 1){
+    // console.log(result);
+    password_string = result[0].password_string;
+	var firstname = result[0].first_name;
+	var pin = result[0].pin;
+	var member_code = membercode;
+  var email = result[0].email ;
+	var currentpass = result[0].password ;
+    
+
+		if(oldpin == pin){
+			   
+				
+			 var sql = "UPDATE `members` set pin='"+confirmpin+"'  where member_code='" + membercode + "' and pin='" + oldpin + "'";
+
+    var query = db.query(sql, function (err1, result1) {
+
+      if (err1) return res.status(401).send({ error: err1.message });
+				var transporter = nodemailer.createTransport({
+					pool: true,
+					host: "madrascricketclub.org", 
+					port: 465,
+					secure: true, // use TLS
+					auth: {
+						user: "social@madrascricketclub.org",
+						pass: "m%b9mL082",
+					},
+				});
+				mailOptions = {
+					from: 'social@madrascricketclub.org',
+					 to: email,
+					//to:'prakash@lokas.info',
+					subject: 'MCC - Pin Updated',
+					// text: 'Your password is ',
+					// html: '<h1>Welcome</h1><p>That was easy! your pin is : '+ result[0].pin+'</p>'
+					html : '<table border="1" cellspacing="0" cellpadding="0" width="800" style="width:600.0pt;border:solid #999999 1.0pt">       <tbody><tr><td style="border:none;border-bottom:solid #999999 1.0pt;background:#f6f6f6;padding:3.75pt 3.75pt 3.75pt 3.75pt">       <p class="MsoNormal">       <span style="color:black">       <img border="0" width="200" height="45" style="width:2.0833in;height:.4687in" id="m_-452513339896761974_x0000_i1025" src="https://ci3.googleusercontent.com/proxy/H7S-PZpQXfRzgLOaOSysE85OV2h4UMwhL7_3iKcNP8eo4fGNQNJGOffKe_9YwMbCxHkftfJrPv5stxwOOqeBNqNpKfnTnVIhje9z9-OU0QK2KpvMpBJdzOTLvQ=s0-d-e1-ft#https://www.madrascricketclub.org/portal/public_v1.0/images/mcc_logo.png" alt="Madras Cricket Club" class="CToWUd"></span></p></td><td width="488" style="width:366.0pt;border:none;border-bottom:solid #999999 1.0pt;background:#f6f6f6;padding:3.75pt 3.75pt 3.75pt 3.75pt"><p class="MsoNormal"><span style="color:black">&nbsp;</span></p></td></tr><tr><td colspan="2" style="border:none;padding:3.75pt 3.75pt 3.75pt 3.75pt"><p class="MsoNormal">Dear '+firstname+'&nbsp;,</p></td></tr><tr><td colspan="2" style="border:none;padding:3.75pt 3.75pt 3.75pt 3.75pt"><p class="MsoNormal">Your pin has been updated successfully. Your new login details are as follows</p></td></tr><tr><td colspan="2" style="border:none;padding:3.75pt 3.75pt 3.75pt 3.75pt"><p class="MsoNormal">Member Code: <span style="color:red">'+member_code+'</span></p></td></tr>'+
+					'<tr><td colspan="2" style="border:none;padding:3.75pt 3.75pt 3.75pt 3.75pt"><p class="MsoNormal">Pin: <span style="color:red">'+confirmpin+'</span></p></td></tr><tr><td colspan="2" style="border:none;padding:3.75pt 3.75pt 3.75pt 3.75pt"><p class="MsoNormal">Have a nice day.</p></td></tr><tr><td colspan="2" style="border:none;padding:3.75pt 3.75pt 3.75pt 3.75pt"><p class="MsoNormal">Regards</p></td></tr><tr><td colspan="2" style="border:none;padding:3.75pt 3.75pt 3.75pt 3.75pt"><p class="MsoNormal"><u>Madras Cricket Club Support.</u></p></td></tr><tr><td colspan="2" style="border:none;padding:3.75pt 3.75pt 3.75pt 3.75pt"><p class="MsoNormal"><a href="http://www.madrascricketclub.org" target="_blank" data-saferedirecturl="https://www.google.com/url?q=http://www.madrascricketclub.org&amp;source=gmail&amp;ust=1657802750140000&amp;usg=AOvVaw0EkVi-f9AxF_S-gXQ3Qo5l">www.madrascricketclub.org</a></p></td></tr></tbody></table>'
+
+				};
+
+				transporter.sendMail(mailOptions, function (error, info) {
+					if (error) {
+						console.log(error);
+					} else {
+						console.log('Email sent: ' + info.response);
+					}
+				});
+
+
+
+		return res.status(200).json({ success: '1'});
+		});
+ 
+		}else{
+		return  res.status(200).json({ success: '0', error:'Old pin not matching' });
+		}
+		
+	
+	}
+  });
 });
 
 module.exports = router;

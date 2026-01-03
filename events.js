@@ -791,6 +791,60 @@ router.route('/update_event').post(upload.fields([{
 
 });
 
+router.route('/update_event_image').post(upload.fields([ {
+	name: 'image1_file', maxCount: 1
+}, {
+	name: 'image2_file', maxCount: 1
+}, {
+	name: 'image3_file', maxCount: 1
+}, {
+	name: 'image4_file', maxCount: 1
+}, {
+	name: 'image5_file', maxCount: 1
+}, {
+	name: 'image6_file', maxCount: 1
+}]), function (req, res) {
+	
+	var set = "";
+	if (req.files.image1_file) {
+		var image1_file = req.files.image1_file[0].filename;
+		if (set == "") { set += " image1 ='" + image1_file + "' " } else { set += ", image1 ='" + image1_file + "' " }
+	}
+	if (req.files.image2_file) {
+		var image2_file = req.files.image2_file[0].filename;
+		if (set == "") { set += " image2 ='" + image2_file + "' " } else { set += ", image2 ='" + image2_file + "' " }
+	}
+	if (req.files.image3_file) {
+		var image3_file = req.files.image3_file[0].filename;
+		if (set == "") { set += " image3 ='" + image3_file + "' " } else { set += ", image3 ='" + image3_file + "' " }
+	}
+	if (req.files.image4_file) {
+		var image4_file = req.files.image4_file[0].filename;
+		if (set == "") { set += " image4 ='" + image4_file + "' " } else { set += ", image4 ='" + image4_file + "' " }
+	}
+
+	if (req.files.image5_file) {
+		var image5_file = req.files.image5_file[0].filename;
+		if (set == "") { set += " image5 ='" + image5_file + "' " } else { set += ", image5 ='" + image5_file + "' " }
+	}
+
+	if (req.files.image6_file) {
+		var image6_file = req.files.image6_file[0].filename;
+		if (set == "") { set += " image6 ='" + image6_file + "' " } else { set += ", image6 ='" + image6_file + "' " }
+	}
+
+
+	
+
+	var id = req.body.event_id;
+	var sql = " UPDATE events SET " + set + " WHERE id='" + id + "'";
+	db.query(sql, function (err, result) {
+		if (err) return res.status(401).send({ error: err.message });
+		return res.status(200).json({ success: '1', response: result });
+	});
+
+});
+
 router.route('/category_get').get(function (req, res) {
 
 	var where = '';

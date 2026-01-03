@@ -6,6 +6,7 @@ require('dotenv').config();
 
 const crypto = require('crypto')
 var db=require('./db');
+var dblib = require('./dblib');
 var nodemailer = require('nodemailer');
 
 
@@ -104,13 +105,17 @@ router.route('/create_member').post(function(req,res){
     var sex= item.sex;
     var email= item.email;
     var mobile_no= item.mobile_no;
+    var relation = item.relation;
+   var relation_no = item.relation_no;
+   var relation_email = item.relation_email;
     var postal_address= item.postal_address;
 	var doj= item.doj;
 	var type="U";
 	var login_check="f";
-      var sql="INSERT INTO members(member_code,password,password_string,type,first_name,last_name, email,sex, date_of_join,mobile_no,postal_address,login_check,pin) values('"+member_code+"','"+hash+"','"+passtr+"', '"+type+"', '"+firstname+"','"+lastname+"','"+email+"','"+sex+"','"+doj+"','"+mobile_no+"', '"+postal_address+"', '"+login_check+"','"+pin+"')";
+      var sql="INSERT INTO members(member_code,password,password_string,type,first_name,last_name, email,sex, date_of_join,mobile_no,relation,relation_no,relation_email,postal_address,login_check,pin) values('"+member_code+"','"+hash+"','"+passtr+"', '"+type+"', '"+firstname+"','"+lastname+"','"+email+"','"+sex+"','"+doj+"','"+mobile_no+"','" + relation + "','" + relation_no + "','" + relation_email + "', '"+postal_address+"', '"+login_check+"','"+pin+"')";
     db.query(sql, function (err, result) {
        if (err)  return res.status(401).send({ error: err.message});
+       dblib.query("INSERT INTO members(member_code,password,password_string,type,first_name,last_name, email,flag) values('" + member_code + "','" + hash + "','" + passtr + "', '" + type + "', '" + firstname + "','" + lastname + "','" + email + "','NEWMEM')", function (err, result) {});
        var transporter = nodemailer.createTransport({
           pool: true,
           host: "madrascricketclub.org", 
@@ -255,7 +260,7 @@ if(member_id!=''){
 
     var member_code= req.query.member_code;
 
-      var sql="select member_code,first_name,last_name,email,sex,DATE_FORMAT(date_of_join,'%d-%b-%Y') AS doj,last_login,ip_address,mobile_no,postal_address from members where member_code='"+member_code+"' OR first_name='"+member_code+"' ";
+      var sql="select member_code,first_name,last_name,email,sex,DATE_FORMAT(date_of_join,'%d-%b-%Y') AS doj,last_login,ip_address,mobile_no,relation,relation_no,relation_email,postal_address from members where member_code='"+member_code+"' OR first_name='"+member_code+"' ";
     db.query(sql, function (err, result) {
        if (err)  return res.status(401).send({ error: err.message });
        if (result.length == 1) {
@@ -274,11 +279,14 @@ if(member_id!=''){
     var sex= item.sex;
     var email= item.email;
     var mobile_no= item.mobile_no;
+    var relation = item.relation;
+  var relation_no = item.relation_no;
+  var relation_email = item.relation_email;
     var postal_address= item.postal_address;
 var doj= item.doj;
     var id= item.id;
 
-      var sql="UPDATE members SET first_name='"+firstname+"',last_name='"+lastname+"',sex='"+sex+"', email='"+email+"',mobile_no='"+mobile_no+"',postal_address="+db.escape(postal_address)+", member_code='"+member_code+"', date_of_join='"+doj+"' where id='"+id+"'";
+      var sql="UPDATE members SET first_name='"+firstname+"',last_name='"+lastname+"',sex='"+sex+"', email='"+email+"',mobile_no='"+mobile_no+"',relation_no='" + relation_no + "',relation='" + relation + "',relation_email='" + relation_email + "',postal_address="+db.escape(postal_address)+", member_code='"+member_code+"', date_of_join='"+doj+"' where id='"+id+"'";
     db.query(sql, function (err, result) {
        if (err)  return res.status(401).send({ error: err.message, sql:sql });
        return  res.status(200).send({ success:1 });
@@ -329,7 +337,7 @@ var doj= item.doj;
 		}
 	}
 	var sqlTotal = "SELECT COUNT(id) as totalcount from members "+where+" "+sort+";";
-     var sql="select  id, pin, member_code,first_name,last_name,email,sex,DATE_FORMAT(date_of_join,'%Y-%m-%d') AS doj, last_login,ip_address,mobile_no,postal_address from members "+where+" "+sort+" "+limit+" ;";
+     var sql="select  id, pin, member_code,first_name,last_name,email,sex,DATE_FORMAT(date_of_join,'%Y-%m-%d') AS doj, last_login,ip_address,mobile_no,relation_no,relation_email,relation,postal_address from members "+where+" "+sort+" "+limit+" ;";
     // exit;
 	// console.log('sql', sql);
 	db.query(sql, function (err, result) {
